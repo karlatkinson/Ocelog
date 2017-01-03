@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
@@ -36,9 +37,9 @@ namespace Ocelog.Test
         {
             var parentblob = new Blob();
 
-            var deepchild = new Blob() { Child = parentblob };
+            var deepchild = new Blob { Child = parentblob };
 
-            parentblob.Child = new Blob() { Child = new Blob() { Child = new Blob() { Child = deepchild } } };
+            parentblob.Child = new Blob { Child = new Blob { Child = new Blob { Child = deepchild } } };
 
             var dictionary = ObjectMerging.ToDictionary(parentblob);
 
@@ -132,6 +133,71 @@ namespace Ocelog.Test
 
             Assert.True(dictionary.ContainsKey("TargetSite"));
             Assert.Equal(blob.TargetSite.ToString(), dictionary["TargetSite"]);
+        }
+
+        [Fact]
+        private void should_merge_unboxed_arrays()
+        {
+            var blob = new { Ids = new[] { 12 } };
+            var blob2 = new { Ids = new[] { 34 } };
+
+            var dictionary = ObjectMerging.Flatten(new[] { blob, blob2 });
+
+            Assert.True(dictionary.ContainsKey("Ids"));
+            Assert.Collection<object>((IEnumerable<object>)dictionary["Ids"],
+                id => Assert.Equal(12, id),
+                id => Assert.Equal(34, id));
+        }
+
+        [Fact]
+        private void should_merge_collections()
+        {
+            var blob = new { Ids = new[] { 12 }.ToList() };
+            var blob2 = new { Ids = new[] { 34 }.ToList() };
+
+            var dictionary = ObjectMerging.Flatten(new[] { blob, blob2 });
+
+            Assert.True(dictionary.ContainsKey("Ids"));
+            Assert.Collection<object>((IEnumerable<object>)dictionary["Ids"],
+                id => Assert.Equal(12, id),
+                id => Assert.Equal(34, id));
+        }
+
+        [Fact]
+        private void should_merge_collections_of_mixed_types()
+        {
+            var blob = new { Ids = new[] { 12 }.ToList() };
+            var blob2 = new { Ids = new[] { "34" }.ToList() };
+            var blob3 = new { Ids = new[] { true } };
+
+            var dictionary = ObjectMerging.Flatten(new object[] { blob, blob2, blob3 });
+
+            Assert.True(dictionary.ContainsKey("Ids"));
+            Assert.Collection<object>((IEnumerable<object>)dictionary["Ids"],
+                id => Assert.Equal(12, id),
+                id => Assert.Equal("34", id),
+                id => Assert.Equal(true, id));
+        }
+
+        [Fact]
+        private void should_merge_non_generic_collections()
+        {
+            var data1 = new Exception().Data;
+            data1.Clear();
+            data1.Add("blob", "thang");
+            var blob = new { Things = data1 };
+
+            var data2 = new Exception().Data;
+            data2.Clear();
+            data2.Add("blob", "thang2");
+            var blob2 = new { Things = data2 };
+
+            var dictionary = ObjectMerging.Flatten(new object[] { blob, blob2 });
+
+            Assert.True(dictionary.ContainsKey("Things"));
+            Assert.Collection<object>((IEnumerable<object>)dictionary["Things"],
+                id => Assert.Equal(new DictionaryEntry("blob", "thang"), id),
+                id => Assert.Equal(new DictionaryEntry("blob", "thang2"), id));
         }
 
         private Exception GetException()

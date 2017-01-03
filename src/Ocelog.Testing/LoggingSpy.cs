@@ -1,37 +1,19 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Reactive.Linq;
-using System.Reflection;
 
 namespace Ocelog.Testing
 {
     public class LoggingSpy
     {
-        private List<LogEvent> _logEvents = new List<LogEvent>();
+        private readonly List<LogEvent> _logEvents = new List<LogEvent>();
 
         public Logger Logger { get; private set; }
 
         public LoggingSpy()
         {
             Logger = new Logger(events => events.Subscribe(RecordLog));
-        }
-
-        public bool DidInfo(object content)
-        {
-            return DidLog(LogLevel.Info, content);
-        }
-
-        public bool DidWarn(object content)
-        {
-            return DidLog(LogLevel.Warn, content);
-        }
-
-        public bool DidError(object content)
-        {
-            return DidLog(LogLevel.Error, content);
         }
 
         public void AssertDidInfo(object content)
@@ -47,11 +29,6 @@ namespace Ocelog.Testing
         public void AssertDidError(object content)
         {
             AssertDidLog(LogLevel.Error, content);
-        }
-
-        private bool DidLog(LogLevel logLevel, object content)
-        {
-            return _logEvents.Any(item => item.Level == logLevel && DidMatch(item.Content, content, "").Item1);
         }
 
         private void AssertDidLog(LogLevel logLevel, object content)
@@ -89,12 +66,29 @@ namespace Ocelog.Testing
             if (IsComparableWithEquals(expectedContent, actualContent))
                 return actualContent.Equals(expectedContent) ? Pass() : Fail($"Not equal ({path}) Expected: {expectedContent} but got {actualContent}");
 
-            return DidPropertiesMatch(actualContent, expectedContent, path);
+            if (actualContent is IEnumerable && expectedContent is IEnumerable && !(actualContent is Dictionary<string, object>))
+                return DidCollectionsMatch(actualContent, expectedContent, path);
 
+            return DidPropertiesMatch(actualContent, expectedContent, path);
+        }
+
+        private Tuple<bool, string> DidCollectionsMatch(object actualContent, object expectedContent, string path)
+        {
+            var actualCollection = ((IEnumerable)actualContent).Cast<object>();
+            var expectedCollection = ((IEnumerable)expectedContent).Cast<object>();
+
+            if (actualCollection.Count() != expectedCollection.Count())
+                return Fail($"Collections are different lengths ({path})");
+
+            var zippedCollections = actualCollection.Zip(expectedCollection, (actual, expected) => new { actual, expected });
+
+            return zippedCollections.Zip(Enumerable.Range(0, zippedCollections.Count()), (pair, index) => DidMatch(pair.actual, pair.expected, path + $"[{index}]"))
+                .FirstOrDefault(match => !match.Item1)
+                ?? Pass();
         }
 
         private Tuple<bool, string> DidPropertiesMatch(object actualContent, object expectedContent, string path)
-        { 
+        {
             var expectedProperties = GetValueProperties(expectedContent);
             var actualProperties = GetValueProperties(actualContent);
 
@@ -145,8 +139,8 @@ namespace Ocelog.Testing
         {
             return actualContent.GetType().IsValueType
                 || expectedContent.GetType().IsValueType
-                || actualContent.GetType() == typeof(string)
-                || expectedContent.GetType() == typeof(string);
+                || actualContent is string
+                || expectedContent is string;
         }
 
         private bool IsMatchingPredicate(object expectedContent, object actualContent)

@@ -18,7 +18,6 @@ namespace Ocelog.Test
         [InlineData("field_name", "field_name")]
         [InlineData("Field_name", "field_name")]
         [InlineData("FieldName_Goes here", "field_name_goes_here")]
-    //    [InlineData("hotelID", "hotel_id")]
         [InlineData("hotelId", "hotel_id")]
         public void should_convert_fieldnames_to_snakecase(string originalFieldName, string finalFieldName)
         {
@@ -41,6 +40,53 @@ namespace Ocelog.Test
             Assert.Equal(valueToCheckFor, field.Value);
         }
 
+        [Fact]
+        public void should_convert_fieldnames_to_snakecase_recursively()
+        {
+            const string valueToCheckFor = "valuetocheckfor";
+
+            var obj = new Dictionary<string, object> { { "Base", new Dictionary<string, object> { { "FieldName", valueToCheckFor } } } };
+
+            var output = new List<ProcessedLogEvent>();
+            var logger = new Logger(logEvents => logEvents
+                .Select(BasicFormatting.Process)
+                .Select(FieldNameFormatting.ToSnakeCase())
+                .Subscribe(log => output.Add(log))
+                );
+
+            logger.Info(obj);
+
+            var topLevel = (Dictionary<string, object>)output[0].Content.First().Value;
+            var field = topLevel.First();
+
+            Assert.Equal("field_name", field.Key);
+            Assert.Equal(valueToCheckFor, field.Value);
+        }
+
+        [Fact]
+        public void should_convert_fieldnames_to_snakecase_recursively_through_lists()
+        {
+            const string valueToCheckFor = "valuetocheckfor";
+
+            var obj = new Dictionary<string, object> { { "Base", new[] { new Dictionary<string, object> { { "FieldName", valueToCheckFor } } } } };
+
+            var output = new List<ProcessedLogEvent>();
+            var logger = new Logger(logEvents => logEvents
+                .Select(BasicFormatting.Process)
+                .Select(FieldNameFormatting.ToSnakeCase())
+                .Subscribe(log => output.Add(log))
+                );
+
+            logger.Info(obj);
+
+            var array = (IEnumerable<object>)output[0].Content.First().Value;
+            var subObj = (Dictionary<string, object>)array.First();
+            var field = subObj.First();
+
+            Assert.Equal("field_name", field.Key);
+            Assert.Equal(valueToCheckFor, field.Value);
+        }
+
         [Theory]
         [InlineData("field", "Field")]
         [InlineData("Field", "Field")]
@@ -51,7 +97,6 @@ namespace Ocelog.Test
         [InlineData("field_name", "FieldName")]
         [InlineData("Field_name", "FieldName")]
         [InlineData("FieldName_Goes here", "FieldNameGoesHere")]
-        //    [InlineData("hotelID", "hotelId")]
         [InlineData("hotelId", "HotelId")]
         public void should_convert_fieldnames_to_pascalcase(string originalFieldName, string finalFieldName)
         {
@@ -74,6 +119,53 @@ namespace Ocelog.Test
             Assert.Equal(valueToCheckFor, field.Value);
         }
 
+        [Fact]
+        public void should_convert_fieldnames_to_pascalcase_recursively()
+        {
+            const string valueToCheckFor = "valuetocheckfor";
+
+            var obj = new Dictionary<string, object> { { "Base", new Dictionary<string, object> { { "field_Name", valueToCheckFor } } } };
+
+            var output = new List<ProcessedLogEvent>();
+            var logger = new Logger(logEvents => logEvents
+                .Select(BasicFormatting.Process)
+                .Select(FieldNameFormatting.ToPascalCase())
+                .Subscribe(log => output.Add(log))
+                );
+
+            logger.Info(obj);
+
+            var topLevel = (Dictionary<string, object>)output[0].Content.First().Value;
+            var field = topLevel.First();
+
+            Assert.Equal("FieldName", field.Key);
+            Assert.Equal(valueToCheckFor, field.Value);
+        }
+
+        [Fact]
+        public void should_convert_fieldnames_to_pascalcase_recursively_through_lists()
+        {
+            const string valueToCheckFor = "valuetocheckfor";
+
+            var obj = new Dictionary<string, object> { { "Base", new[] { new Dictionary<string, object> { { "field_Name", valueToCheckFor } } } } };
+
+            var output = new List<ProcessedLogEvent>();
+            var logger = new Logger(logEvents => logEvents
+                .Select(BasicFormatting.Process)
+                .Select(FieldNameFormatting.ToPascalCase())
+                .Subscribe(log => output.Add(log))
+                );
+
+            logger.Info(obj);
+
+            var array = (IEnumerable<object>)output[0].Content.First().Value;
+            var subObj = (Dictionary<string, object>)array.First();
+            var field = subObj.First();
+
+            Assert.Equal("FieldName", field.Key);
+            Assert.Equal(valueToCheckFor, field.Value);
+        }
+
         [Theory]
         [InlineData("field", "field")]
         [InlineData("Field", "field")]
@@ -84,7 +176,6 @@ namespace Ocelog.Test
         [InlineData("field_name", "fieldName")]
         [InlineData("Field_name", "fieldName")]
         [InlineData("FieldName_Goes here", "fieldNameGoesHere")]
-        //    [InlineData("hotelID", "hotelId")]
         [InlineData("hotelId", "hotelId")]
         public void should_convert_fieldnames_to_camelcase(string originalFieldName, string finalFieldName)
         {
@@ -106,6 +197,52 @@ namespace Ocelog.Test
             Assert.Equal(finalFieldName, field.Key);
             Assert.Equal(valueToCheckFor, field.Value);
         }
+
+        [Fact]
+        public void should_convert_fieldnames_to_camelcase_recursively()
+        {
+            const string valueToCheckFor = "valuetocheckfor";
+
+            var obj = new Dictionary<string, object> { { "Base", new Dictionary<string, object> { { "field_Name", valueToCheckFor } } } };
+
+            var output = new List<ProcessedLogEvent>();
+            var logger = new Logger(logEvents => logEvents
+                .Select(BasicFormatting.Process)
+                .Select(FieldNameFormatting.ToCamelCase())
+                .Subscribe(log => output.Add(log))
+                );
+
+            logger.Info(obj);
+
+            var topLevel = (Dictionary<string, object>)output[0].Content.First().Value;
+            var field = topLevel.First();
+
+            Assert.Equal("fieldName", field.Key);
+            Assert.Equal(valueToCheckFor, field.Value);
+        }
+
+        [Fact]
+        public void should_convert_fieldnames_to_Camelcase_recursively_through_lists()
+        {
+            const string valueToCheckFor = "valuetocheckfor";
+
+            var obj = new Dictionary<string, object> { { "Base", new[] { new Dictionary<string, object> { { "field_Name", valueToCheckFor } } } } };
+
+            var output = new List<ProcessedLogEvent>();
+            var logger = new Logger(logEvents => logEvents
+                .Select(BasicFormatting.Process)
+                .Select(FieldNameFormatting.ToCamelCase())
+                .Subscribe(log => output.Add(log))
+                );
+
+            logger.Info(obj);
+
+            var array = (IEnumerable<object>)output[0].Content.First().Value;
+            var subObj = (Dictionary<string, object>)array.First();
+            var field = subObj.First();
+
+            Assert.Equal("fieldName", field.Key);
+            Assert.Equal(valueToCheckFor, field.Value);
+        }
     }
 }
-
